@@ -11,8 +11,8 @@ import { readFileSync } from "fs";
 import { extname, resolve } from "path";
 import { GraphQLSchemaProvider, SchemaChangeUnsubscribeHandler } from "./base";
 import { NotificationHandler } from "vscode-languageserver";
-import { buildSchemaFromSDL } from "apollo-graphql";
 import { Debug } from "../../utilities";
+import { buildSchemaFromSDL } from "apollo-graphql";
 
 export interface FileSchemaProviderConfig {
   path?: string;
@@ -50,6 +50,7 @@ export class FileSchemaProvider implements GraphQLSchemaProvider {
   }
 
   // load a graphql file or introspection result and return the GraphQL DocumentNode
+  // this is the mechanism for loading a single file's DocumentNode
   loadFileAndGetDocument(path: string) {
     let result;
     try {
@@ -88,10 +89,33 @@ export class FileSchemaProvider implements GraphQLSchemaProvider {
     return () => {};
   }
 
+  // Load SDL from a single file. This is only used with federated services,
+  // since they need full SDL and not the printout of GraphQLSchema
   async resolveFederatedServiceSDL() {
     if (this.federatedServiceSDL) return this.federatedServiceSDL;
 
-    const { path } = this.config;
+    const { path, paths } = this.config;
+
+    // load each path and get sdl string from each, if a list, concatenate them all
+    const SDLs = path
+      ? [this.loadFileAndGetSDL(path)]
+      : paths
+      ? paths.map(this.loadFileAndGetSDL)
+      : undefined;
+
+    if (!SDLs)
+      throw new Error(
+        `SDL could not be loaded for one of more files: [${
+          path ? path : paths ? paths.join(", ") : "undefined"
+        }]`
+      );
+
+    this.federatedServiceSDL = SDLs.join("\n");
+    return this.federatedServiceSDL;
+  }
+
+  // this is the mechanism for loading a single file's SDL
+  loadFileAndGetSDL(path: string) {
     let result;
     try {
       result = readFileSync(path, {
@@ -105,7 +129,6 @@ export class FileSchemaProvider implements GraphQLSchemaProvider {
 
     // this file should already be in sdl format
     if (ext === ".graphql" || ext === ".graphqls" || ext === ".gql") {
-      this.federatedServiceSDL = result as string;
       return result as string;
     } else {
       return Debug.error(
