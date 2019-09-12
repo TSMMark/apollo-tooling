@@ -31,7 +31,7 @@ export interface Flags {
   config?: string;
   header?: string[];
   endpoint?: string;
-  localSchemaFile?: string;
+  localSchemaFile?: string | string[];
   key?: string;
   engine?: string;
   frontend?: string;
@@ -168,6 +168,7 @@ export abstract class ProjectCommand extends Command {
       });
     }
 
+    // this can set a single or multiple local schema files
     if (flags.localSchemaFile) {
       if (isClientConfig(config)) {
         config.setDefaults({
