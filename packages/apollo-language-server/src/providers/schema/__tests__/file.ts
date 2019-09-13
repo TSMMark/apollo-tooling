@@ -67,7 +67,7 @@ describe("FileSchemaProvider", () => {
         type Product @key(fields: "id") {
           id: ID
           sku: ID
-          name: string
+          name: String
         }
       `;
     writeFilesToDir(dir, {
@@ -77,6 +77,46 @@ describe("FileSchemaProvider", () => {
     const provider = new FileSchemaProvider({ path: dir + "/schema.graphql" });
     const sdl = await provider.resolveFederatedServiceSDL();
     expect(sdl).toEqual(writtenSDL);
+  });
+
+  fit("finds and loads sdl from multiple graphql files", async () => {
+    writeFilesToDir(dir, {
+      "schema.graphql": `
+        extend type Query {
+          myProduct: Product
+        }
+
+        type Product @key(fields: "id") {
+          id: ID
+          sku: ID
+          name: String
+        }`,
+      "schema2.graphql": `
+        extend type Product {
+          weight: Float
+        }`
+    });
+
+    const provider = new FileSchemaProvider({
+      paths: [dir + "/schema.graphql", dir + "/schema2.graphql"]
+    });
+    const sdl = await provider.resolveFederatedServiceSDL();
+    expect(sdl).toMatchInlineSnapshot(`
+      "
+              extend type Query {
+                myProduct: Product
+              }
+
+              type Product @key(fields: \\"id\\") {
+                id: ID
+                sku: ID
+                name: String
+              }
+
+              extend type Product {
+                weight: Float
+              }"
+    `);
   });
 
   it("errors when sdl file is not a graphql file", async () => {

@@ -110,6 +110,11 @@ export class FileSchemaProvider implements GraphQLSchemaProvider {
         }]`
       );
 
+    const docs = SDLs.map(parse);
+    console.log({ docs });
+    const mySchema = buildSchemaFromSDL(docs);
+    console.log({ mySchema });
+
     this.federatedServiceSDL = SDLs.join("\n");
     return this.federatedServiceSDL;
   }
